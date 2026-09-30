@@ -102,6 +102,7 @@ import { EXTERNAL_SERVICES } from "../../external-services/registered-external-s
 import { externalServicesConfigPiece, findExternalService, stopExternalServices, type ExternalService, type ExternalServiceHandle } from "../../external-services/external-service.js";
 import { generateSituationalConfiguration } from "../../situational/configuration/generate-situational-configuration.js";
 import { RESULTS_BUCKET, uploadSituationalResults } from "../../situational/upload-results/upload-results.js";
+import { parseScoresJson5 } from "../../ingest/parse.js";
 import { artifactUploadEnabled } from "../../util/aws/upload-run-artifacts.js";
 import { DEFAULT_CBDINO_SETTINGS, SITUATIONAL_RESULTS_DIR_NAME, type CbdinoSettings } from "../../situational/configuration/build-situational-configuration.js";
 import { loadEnvironments } from "../../util/environments.js";
@@ -1120,6 +1121,12 @@ export async function runSituationalTests(
     ...testRun.details,
   );
 
+  // Read on the host before uploading, so nothing the upload does to the files can hide them.
+  const negativeScores = await findNegativeSituationalScores(execution, driverResultsDir);
+  for (const negative of negativeScores) {
+    details.push({ label: iterationLabel(`Score (${negative.runDir})`), value: String(negative.score) });
+  }
+
   try {
     const uploadOutput = await uploadCollectedResults(execution, driverResultsDir, runRunDir(run.path), situationalRunId);
     details.push(...uploadOutput.details);
@@ -1137,7 +1144,7 @@ export async function runSituationalTests(
     pathLabel,
     sdk: run.sdk.name,
     type: run.type,
-    ok: testRun.ok,
+    ok: testRun.ok && negativeScores.length === 0,
     ...(testRun.summary ? { summary: testRun.summary } : {}),
     surefireDir: join(dirname(testRun.logFile), "surefire-reports"),
     ...(testRun.situationalResultsCsv ? { situationalResultsCsv: testRun.situationalResultsCsv } : {}),
@@ -1145,7 +1152,73 @@ export async function runSituationalTests(
   if (!testRun.ok) {
     throwFatalToSession("FIT tests failed — check the test-driver log for details.", testFailureFacts(testRun));
   }
+  // Treating FIT/SIT failures as fatal - see https://couchbase.slack.com/archives/C05LNBVQRE3/p1790780184367839?thread_ts=1790679582.397089&cid=C05LNBVQRE3
+  if (negativeScores.length > 0) {
+    throwFatalToSession(formatNegativeScoresMessage(negativeScores));
+  }
   return { artifacts, details };
+}
+
+/** A situational run directory whose scores.json5 holds a score below zero. */
+export interface NegativeSituationalScore {
+  /** The run directory's name under test-driver/results (the run UUID prefix). */
+  runDir: string;
+  score: number;
+  reasons: string[];
+}
+
+/** The execution-context methods findNegativeSituationalScores needs. */
+export type ScoresReader = Pick<FitExecutionContext, "pathExists" | "capture">;
+
+/**
+ * Read each `<driverResultsDir>/<runDir>/scores.json5` the situational driver's Scorer
+ * wrote, on the execution host, and return those with a negative score. The driver
+ * only records the score and never fails the JUnit test on it, so without this a
+ * badly-scoring run passes. A missing `score` key means nothing was scored and is not
+ * negative. Best-effort: a scores file that can't be read or parsed warns rather than
+ * failing the run, since the test-driver's own result is already known.
+ */
+export async function findNegativeSituationalScores(
+  execution: ScoresReader,
+  driverResultsDir: string,
+): Promise<NegativeSituationalScore[]> {
+  if (!(await execution.pathExists(driverResultsDir))) return [];
+  let scoreFiles: string[];
+  try {
+    const listing = await execution.capture(
+      "find",
+      [driverResultsDir, "-mindepth", "2", "-maxdepth", "2", "-name", "scores.json5"],
+      undefined,
+      { quiet: true },
+    );
+    scoreFiles = listing.split("\n").map((line) => line.trim()).filter(Boolean).sort();
+  } catch (err) {
+    fitCliWarn(`\nCould not list situational scores under ${driverResultsDir}: ${(err as Error).message}`);
+    return [];
+  }
+  const negatives: NegativeSituationalScore[] = [];
+  for (const file of scoreFiles) {
+    let scores: Record<string, unknown>;
+    try {
+      scores = parseScoresJson5(await execution.capture("cat", [file], undefined, { quiet: true }));
+    } catch (err) {
+      fitCliWarn(`\nCould not read situational score ${file}: ${(err as Error).message}`);
+      continue;
+    }
+    const score = scores.score;
+    if (typeof score !== "number" || score >= 0) continue;
+    const reasons = Array.isArray(scores.reasons) ? scores.reasons.map(String) : [];
+    negatives.push({ runDir: basename(dirname(file)), score, reasons });
+  }
+  return negatives;
+}
+
+export function formatNegativeScoresMessage(negatives: readonly NegativeSituationalScore[]): string {
+  const lines = negatives.map((negative) => {
+    const reasons = negative.reasons.map((reason) => `\n    ${reason}`).join("");
+    return `  ${negative.runDir}: score ${negative.score}${reasons}`;
+  });
+  return `Situational run scored below zero, though its tests passed:\n${lines.join("\n")}`;
 }
 
 /** The execution-context methods uploadCollectedResults needs. */
