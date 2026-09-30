@@ -3,7 +3,7 @@
  * remove-all subcommands. Mirrors ../aws/instances-cli.ts; cloud-instances.ts
  * is glue and doesn't touch GCP directly.
  */
-import { checkGcpCredentials } from "./identity.js";
+import { checkGcpAdcCredentials } from "./identity.js";
 import { listGcpInstances } from "./list-instances.js";
 import { terminateGcpInstance } from "./terminate-instance.js";
 import { describeGcpInstance } from "./describe-instance.js";
@@ -13,8 +13,14 @@ import { localGcpCreator, logGcpAction } from "./gcp-cli.js";
 import { gcpTerminateInstanceCommand } from "../../../fit/util/gcp/lifecycle-warning.js";
 import { confirm } from "../../../util/non-fit/prompts.js";
 import type { InstanceRow } from "../instance-row.js";
+import { CloudCredentialsError } from "../cloud-credentials-error.js";
 
 export const FIT_GCP_LABEL = { key: "fit-cli", value: "owned" } as const;
+
+async function requireGcpCredentials(project: string): Promise<void> {
+  const creds = await checkGcpAdcCredentials(project);
+  if (!creds.ok) throw new CloudCredentialsError(creds.message);
+}
 
 function formatGcpInstancesList(instances: GcpInstanceInfo[]): string {
   return instances
@@ -28,7 +34,7 @@ function formatGcpInstancesList(instances: GcpInstanceInfo[]): string {
 
 export async function listInstanceRows(opts: { allUsers: boolean; project: string; zone: string }): Promise<InstanceRow[]> {
   const { allUsers, project, zone } = opts;
-  await checkGcpCredentials(project);
+  await requireGcpCredentials(project);
   const creator = localGcpCreator();
 
   logGcpAction("Listing fit-cli GCP instances", project, zone, {
@@ -50,14 +56,14 @@ export async function listInstanceRows(opts: { allUsers: boolean; project: strin
 /** Used by cloud-instances.ts's `remove` to auto-detect which cloud an identifier belongs to. */
 export async function findInstance(opts: { identifier: string; project: string; zone: string }): Promise<boolean> {
   const { identifier, project, zone } = opts;
-  const creds = await checkGcpCredentials(project);
+  const creds = await checkGcpAdcCredentials(project);
   if (!creds.ok) return false;
   return Boolean(await describeGcpInstance(project, zone, identifier).catch(() => null));
 }
 
 export async function removeInstance(opts: { name: string; force: boolean; project: string; zone: string }): Promise<void> {
   const { name, force, project, zone } = opts;
-  await checkGcpCredentials(project);
+  await requireGcpCredentials(project);
 
   logGcpAction("Deleting GCP instance", project, zone, { name });
 
@@ -99,7 +105,7 @@ export async function removeAllInstances(opts: {
   // Parse up front so a bad duration fails before we touch GCP.
   const cutoffMs = olderThan !== undefined ? instanceAge.parseDuration(olderThan) : undefined;
 
-  await checkGcpCredentials(project);
+  await requireGcpCredentials(project);
   const creator = localGcpCreator();
 
   logGcpAction("Removing fit-cli GCP instances", project, zone, {
