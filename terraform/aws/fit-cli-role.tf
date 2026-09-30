@@ -56,11 +56,18 @@ resource "aws_iam_role" "fit_cli_role" {
         }
       },
       {
+        # Any principal in cb-sdk - IAM users and SSO roles alike - can assume this, with no
+        # sts:AssumeRole grant of its own (see SECRETS3).
         Effect = "Allow"
         Principal = {
-          AWS = "arn:aws:iam::958525475024:root"
+          AWS = "*"
         }
         Action = "sts:AssumeRole"
+        Condition = {
+          StringEquals = {
+            "aws:PrincipalAccount" = "958525475024"
+          }
+        }
       },
     ]
   })
