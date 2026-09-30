@@ -132,11 +132,12 @@ async function checkGcloudCliAuth(): Promise<void> {
  * fit-cli-role assume, minus the assume step (there's nothing to assume into).
  * Always prints (success or failure): the fit-cli/GCP context, which ADC
  * sources are present, and the resolved identity — mirroring AWS's
- * `checkAwsCredentials`, which never runs silently either way. Throws with
- * guidance on failure rather than returning a null/error union, since every
- * caller needs this to have succeeded before doing anything else.
+ * `checkAwsCredentials`, which never runs silently either way.
+ *
+ * This is all that listing/deleting instances needs; launching and reaching
+ * one needs the rest of {@link preflightGcpProject} too.
  */
-export async function preflightGcpProject(project: string): Promise<GcpProjectCheck> {
+async function preflightGcpAdc(project: string): Promise<GcpProjectCheck> {
   printGcpContextSummary();
   printGcpCredentialsDiagnostic();
   console.log(`GCP identity: ${await describeGcpIdentity()}`);
@@ -154,9 +155,21 @@ export async function preflightGcpProject(project: string): Promise<GcpProjectCh
       { cause: err },
     );
   }
+  return { project, name: info.name ?? undefined };
+}
+
+/**
+ * Everything needed before launching and reaching a GCP instance: ADC and
+ * project access ({@link preflightGcpAdc}), plus IAP tunnel permissions and a
+ * live `gcloud` CLI session. Throws with guidance on failure rather than
+ * returning a null/error union, since every caller needs this to have
+ * succeeded before doing anything else.
+ */
+export async function preflightGcpProject(project: string): Promise<GcpProjectCheck> {
+  const result = await preflightGcpAdc(project);
   await checkIapTunnelAccess(project);
   await checkGcloudCliAuth();
-  return { project, name: info.name ?? undefined };
+  return result;
 }
 
 /** The result of {@link checkGcpCredentials}: a usable project, or why we don't have one. */
@@ -178,6 +191,26 @@ export async function checkGcpCredentials(project: string): Promise<GcpCredentia
     const result = await preflightGcpProject(project);
     const ok: GcpCredentialsResult = { ok: true, ...result };
     cachedResult = ok;
+    return ok;
+  } catch (err) {
+    return { ok: false, message: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+let cachedAdcResult: GcpCredentialsResult | undefined;
+
+/**
+ * Like {@link checkGcpCredentials} but only checks ADC and project access
+ * ({@link preflightGcpAdc}). For cloud-instances' list/remove/remove-all, which
+ * never tunnel over IAP, so shouldn't be blocked by missing IAP permissions or
+ * a stale `gcloud` CLI session. Cached the same way.
+ */
+export async function checkGcpAdcCredentials(project: string): Promise<GcpCredentialsResult> {
+  if (cachedAdcResult?.ok && cachedAdcResult.project === project) return cachedAdcResult;
+  try {
+    const result = await preflightGcpAdc(project);
+    const ok: GcpCredentialsResult = { ok: true, ...result };
+    cachedAdcResult = ok;
     return ok;
   } catch (err) {
     return { ok: false, message: err instanceof Error ? err.message : String(err) };

@@ -22,6 +22,7 @@ import {
 } from "../../../fit/util/aws/lifecycle-warning.js";
 import { manageInstances, type InstanceQuery } from "./manage-instances.js";
 import type { InstanceRow } from "../instance-row.js";
+import { CloudCredentialsError } from "../cloud-credentials-error.js";
 
 export { AWS_REGION };
 export type { InstanceQuery };
@@ -31,7 +32,7 @@ export async function listInstanceRows(allUsers: boolean): Promise<InstanceRow[]
   const creator = creds.ok ? callerCreator(creds.identity) : undefined;
 
   if (!allUsers && !creds.ok) {
-    throw new Error(
+    throw new CloudCredentialsError(
       "Can't determine who you are from AWS credentials, so can't scope listing to your own instances. " +
         "Fix your credentials, or pass --all-users to list every fit-cli instance.",
     );
@@ -64,7 +65,7 @@ export async function findInstance(identifier: string): Promise<boolean> {
 export async function removeInstance(instanceId: string, force: boolean): Promise<void> {
   const creds = await checkAwsCredentials();
   if (!creds.ok) {
-    throw new Error(creds.message);
+    throw new CloudCredentialsError(creds.message);
   }
   logAwsAction("Terminating EC2 instance", { instanceId });
 
@@ -127,7 +128,7 @@ export async function removeAllInstances(opts: {
     ? { account: creds.identity.account, creator: callerCreator(creds.identity) }
     : undefined;
   if (!allUsers && !creds.ok) {
-    throw new Error(
+    throw new CloudCredentialsError(
       "Can't determine who you are from AWS credentials, so can't scope removal to your own instances. " +
         "Fix your credentials, or pass --all-users to remove every fit-cli instance.",
     );

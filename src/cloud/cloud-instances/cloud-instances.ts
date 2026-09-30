@@ -24,6 +24,7 @@ import * as aws from "../util/aws/instances-cli.js";
 import * as gcp from "../util/gcp/instances-cli.js";
 import { defaultGcpProjectZone } from "../util/gcp/gcp-cli.js";
 import type { InstanceRow } from "../util/instance-row.js";
+import { shouldSkipUnusableCloud } from "../util/cloud-credentials-error.js";
 
 type Cloud = "aws" | "gcp" | "all";
 
@@ -69,7 +70,10 @@ function parseOlderThan(argv: string[]): string | undefined {
  * the default. Both are attempted even if one fails, so e.g. a GCP outage
  * doesn't prevent EC2 cleanup from running; failures from either are combined
  * into a single thrown error so the overall command (and a CI job) still
- * fails loudly.
+ * fails loudly. The exception is a cloud whose credentials aren't usable at
+ * all off GHA, which is just warned about and skipped (see
+ * shouldSkipUnusableCloud) — many users are only set up for one cloud. If
+ * every cloud gets skipped, that still fails: nothing was checked at all.
  */
 async function runForClouds(
   cloud: Cloud,
@@ -79,7 +83,7 @@ async function runForClouds(
   if (cloud === "aws") return awsFn();
   if (cloud === "gcp") return gcpFn();
 
-  const errors: string[] = [];
+  const failures = new CloudFailures();
   for (const [label, fn] of [
     ["AWS", awsFn],
     ["GCP", gcpFn],
@@ -87,13 +91,39 @@ async function runForClouds(
     try {
       await fn();
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      console.error(`✗ ${label}: ${message}`);
-      errors.push(`${label}: ${message}`);
+      failures.record(label, err);
     }
   }
-  if (errors.length > 0) {
-    throw new Error(errors.join("\n"));
+  failures.throwIfAny(2);
+}
+
+/** Collects per-cloud failures under --cloud all, warning about and skipping any cloud we have no usable credentials for. */
+class CloudFailures {
+  private readonly errors: string[] = [];
+  private skipped = 0;
+
+  record(label: "AWS" | "GCP", err: unknown): void {
+    const message = err instanceof Error ? err.message : String(err);
+    if (shouldSkipUnusableCloud(err)) {
+      this.skipped++;
+      console.warn(
+        `⚠ Skipped ${label}: its credentials aren't usable (details below). ` +
+          `Fine if you've never created ${label} instances; otherwise fix them and rerun with --cloud ${label.toLowerCase()}.\n` +
+          `  ${message.replaceAll("\n", "\n  ")}`,
+      );
+      return;
+    }
+    console.error(`✗ ${label}: ${message}`);
+    this.errors.push(`${label}: ${message}`);
+  }
+
+  throwIfAny(attempted: number): void {
+    if (this.errors.length > 0) {
+      throw new Error(this.errors.join("\n"));
+    }
+    if (this.skipped === attempted) {
+      throw new Error("No cloud had usable credentials, so nothing was checked — see the warnings above.");
+    }
   }
 }
 
@@ -119,7 +149,9 @@ Subcommands:
               everyone's; prompts for confirmation unless --force).
 
 list / manage / remove / remove-all options:
-  --cloud <aws|gcp|all>  Which cloud(s) to operate on (default: all).
+  --cloud <aws|gcp|all>  Which cloud(s) to operate on (default: all). With all, a cloud
+                     whose credentials aren't usable is skipped with a warning
+                     (except on GitHub Actions, where it fails).
   --project <id>     GCP project (default: environments.json5's defaults.gcp.project).
   --zone <zone>      GCP zone (default: environments.json5's defaults.gcp.zone).
 
@@ -171,7 +203,7 @@ async function cmdList(argv: string[]): Promise<void> {
   }
 
   const rows: InstanceRow[] = [];
-  const errors: string[] = [];
+  const failures = new CloudFailures();
   for (const { name, fetch } of sources) {
     try {
       rows.push(...(await fetch()));
@@ -179,9 +211,7 @@ async function cmdList(argv: string[]): Promise<void> {
       // A single explicitly-requested cloud fails hard; --cloud all is best-effort
       // (see runForClouds) so one cloud's outage doesn't hide the other's table.
       if (cloud !== "all") throw err;
-      const message = err instanceof Error ? err.message : String(err);
-      console.error(`✗ ${name}: ${message}`);
-      errors.push(`${name}: ${message}`);
+      failures.record(name, err);
     }
   }
 
@@ -192,9 +222,7 @@ async function cmdList(argv: string[]): Promise<void> {
     console.log(formatInstancesTable(rows));
   }
 
-  if (errors.length > 0) {
-    throw new Error(errors.join("\n"));
-  }
+  failures.throwIfAny(sources.length);
 }
 
 async function cmdManage(argv: string[]): Promise<void> {
