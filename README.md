@@ -64,6 +64,13 @@ bun run config edit
 bun run wizard
 ```
 
+When submitting a PR:
+* Keep the description concise and focussed on what the change does, and how to use it (if applicable).  
+  * Usually no need to mention how you've tested it.
+  * Usually no need to describe how you've implemented it or go file-by-file - that's what the code is for.
+  * The longer the description, the less likely it is someone will actually read it.  Write it for humans.
+* Don't use excessive markup.  Marking up everything that possibly could be just makes it unreadable.
+
 ## Running on a cloud instance (AWS EC2)
 
 At the start of a FIT functional run you can choose to run on your own machine, or on a clean, throwaway AWS EC2 instance.
