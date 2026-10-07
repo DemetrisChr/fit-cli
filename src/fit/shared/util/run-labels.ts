@@ -29,7 +29,7 @@ export interface RunLabelParts {
   presets?: readonly string[];
   /** Whether this is a CNG (Cloud Native Gateway / Protostellar) run. */
   cng?: boolean;
-  /** Whether the cluster is a self-managed Enterprise Analytics cluster (prefixes the cluster segment with `EA:`). */
+  /** Whether the cluster is a self-managed Enterprise Analytics cluster (prefixes the cluster segment with `EA:`, or `OI:` for a 3.x+ Operational Insights version). */
   enterpriseAnalytics?: boolean;
   /** Whether the cluster is a real Capella cloud cluster (prefixes the cluster segment with `Capella:`). */
   capella?: boolean;
@@ -54,6 +54,16 @@ export function instanceLabel(path: DefinitionRunPath, kind?: RunLabelParts["ins
 }
 
 /**
+ * Whether an Enterprise Analytics cluster version is an Operational Insights build — the
+ * renamed Enterprise Analytics, released from 3.x. Matches cbdinocluster's rule for
+ * pulling the operational-insights image. An unknown version can't be told apart, so is not.
+ */
+export function isOperationalInsightsVersion(version?: string): boolean {
+  const major = Number.parseInt(version?.split(".")[0] ?? "", 10);
+  return !Number.isNaN(major) && major >= 3;
+}
+
+/**
  * `cbdino1` / `existing1`, or the cluster's version when we know it.
  *
  * For an allocated cbdino cluster whose version we know, prefer the more useful
@@ -72,11 +82,12 @@ export function clusterLabel(
   capella = false,
   capellaAnalytics = false,
 ): string | undefined {
-  // A self-managed Enterprise Analytics cbdino cluster reads as e.g. `EA:2.2.0-1166`.
+  // A self-managed Enterprise Analytics cbdino cluster reads as e.g. `EA:2.2.0-1166`, or
+  // `OI:3.0.0-1084` for a 3.x+ build (see isOperationalInsightsVersion).
   // A real Capella cloud cluster reads as e.g. `Capella:cbdino1`.
   // A Capella Analytics cloud cluster reads as e.g. `CA:cbdino1`.
   const flavoured = (base: string): string => {
-    if (enterpriseAnalytics) return `EA:${base}`;
+    if (enterpriseAnalytics) return `${isOperationalInsightsVersion(version) ? "OI" : "EA"}:${base}`;
     if (capella) return `Capella:${base}`;
     if (capellaAnalytics) return `CA:${base}`;
     return base;

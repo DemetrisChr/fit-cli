@@ -178,10 +178,7 @@ const AXIS_PHRASES: Record<string, string> = {
   "op-capella": "a real Capella cluster",
   "enterprise-analytics": "a self-managed Enterprise Analytics cluster",
   columnar: "a Capella Analytics (cloud) cluster",
-  // The Operational Insights server isn't released yet, so its presets currently build
-  // the same self-managed Enterprise Analytics cluster - said plainly here rather than
-  // hidden, since this text is what `fit preset list` shows.
-  insights: "an Operational Insights cluster - currently a self-managed Enterprise Analytics cluster",
+  insights: "a self-managed Operational Insights cluster",
 };
 
 /** Capitalizes the first letter — used to make a mid-sentence phrase (like an SDK-family

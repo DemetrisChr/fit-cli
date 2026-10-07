@@ -267,11 +267,11 @@ test("autoDescribeName describes a preset from its name and tags, leading with t
 test("autoDescribeName describes an Operational Insights preset, whose axis token is bare 'insights'", () => {
   assert.equal(
     autoDescribeName("insights-func-lite", ["insights", "functional"]),
-    "Operational Insights SDK functional testing against an Operational Insights cluster - currently a self-managed Enterprise Analytics cluster (lite-tier testing).",
+    "Operational Insights SDK functional testing against a self-managed Operational Insights cluster (lite-tier testing).",
   );
   assert.equal(
     autoDescribeName("insights-sanity", ["insights", "functional"]),
-    "Operational Insights SDK functional testing against an Operational Insights cluster - currently a self-managed Enterprise Analytics cluster (quick sanity testing).",
+    "Operational Insights SDK functional testing against a self-managed Operational Insights cluster (quick sanity testing).",
   );
 });
 

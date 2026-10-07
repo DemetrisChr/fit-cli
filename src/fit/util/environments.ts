@@ -111,6 +111,8 @@ export interface Defaults {
   cngPreviousClusterVersion: string;
   /** Default self-managed Enterprise Analytics build. */
   enterpriseAnalyticsVersion: string;
+  /** Default self-managed Operational Insights build. */
+  operationalInsightsVersion: string;
   /** Default Couchbase Autonomous Operator version for the cao deployer. */
   caoOperatorVersion: string;
   /** Default Cloud Native Gateway (Protostellar gateway) version. */
