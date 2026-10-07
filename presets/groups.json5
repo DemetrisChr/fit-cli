@@ -8,8 +8,7 @@
 //   op            (operational SDK): onprem, cng, capella, capella-pe
 //   enterprise-analytics (Enterprise Analytics SDK): enterprise-analytics
 //   columnar      (Columnar SDK): columnar
-//   insights      (Operational Insights SDK): currently borrows the Enterprise Analytics
-//                 cluster, as the Operational Insights server isn't released yet
+//   insights      (Operational Insights SDK): insights (self-managed Operational Insights)
 // A single `fit run preset <group> --performer <image>` passes ONE performer image
 // to every preset the group expands to, so a group must never mix families —
 // that's why the cross-cluster groups below are `<family>-multi-*`, scoped to one
@@ -68,8 +67,7 @@
   'enterprise-analytics-lite':    { tags: ['enterprise-analytics', 'functional'], order: 25, presets: ['enterprise-analytics-func-lite'] },
   'enterprise-analytics-release': { tags: ['enterprise-analytics', 'functional'], order: 35, presets: ['enterprise-analytics-func-release'] },
 
-  // The Operational Insights server isn't released yet, so these currently build the same
-  // self-managed Enterprise Analytics cluster - see presets/insights-func-lite.json5.
+  // Self-managed Operational Insights cluster - see presets/insights-func-lite.json5.
   'insights-sanity':  { tags: ['insights', 'functional'], order: 15, presets: ['insights-func-sanity'] },
   'insights-lite':    { tags: ['insights', 'functional'], order: 25, presets: ['insights-func-lite'] },
   'insights-release': { tags: ['insights', 'functional'], order: 35, presets: ['insights-func-release'] },

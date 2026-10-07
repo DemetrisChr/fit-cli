@@ -8,6 +8,7 @@ import type { ClusterLifetime, FitDefinition, FitRun, InstanceLifetime, SessionL
 import { resolveDefinitionRefs } from "./resolve-definition.js";
 import { analysePerformerImage } from "../../performers/util/performer-image.js";
 import { sdkPerformerImageBasename } from "../../../util/sdk/sdks.js";
+import { isOperationalInsightsVersion } from "../util/run-labels.js";
 
 function describeClusterSource(cluster: ClusterLifetime): string {
   if (cluster.cbdinocluster) {
@@ -15,9 +16,11 @@ function describeClusterSource(cluster: ClusterLifetime): string {
       .map((n) => (n.version ? `${n.count}n@${n.version}` : `${n.count}n`))
       .join("+");
     const cng = cluster.cbdinocluster.config.cao ? "+CNG" : "";
-    // `columnar: true` + `deployer: cloud` = Capella Analytics (CA); without deployer = Enterprise Analytics (EA).
+    // `columnar: true` + `deployer: cloud` = Capella Analytics (CA); without deployer = Enterprise Analytics (EA),
+    // or Operational Insights (OI) for a 3.x+ build.
+    const selfManagedAnalyticsPrefix = isOperationalInsightsVersion(cluster.cbdinocluster.config.nodes[0]?.version) ? "OI," : "EA,";
     const analyticsPrefix = cluster.cbdinocluster.config.columnar
-      ? cluster.cbdinocluster.config.deployer === "cloud" ? "CA," : "EA,"
+      ? cluster.cbdinocluster.config.deployer === "cloud" ? "CA," : selfManagedAnalyticsPrefix
       : "";
     const capella = cluster.cbdinocluster.capella
       ? `Capella(${cluster.cbdinocluster.capella.cloudProvider}${cluster.cbdinocluster.capella.privateEndpoint ? ",PE" : ""}),`

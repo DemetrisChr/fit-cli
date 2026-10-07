@@ -2,10 +2,8 @@
 // identical to insights-func-lite — kept separate for naming consistency across axes,
 // and as the natural place to add situational coverage later.
 //
-// The Operational Insights server is not released yet, so this runs against a
-// self-managed Enterprise Analytics cluster. See insights-func-lite for the full notes;
-// **that is the file to read first when the OI server ships**, and this one needs the
-// same repointing.
+// See insights-func-lite for notes on the cluster, and on running the EA SDK against
+// an OI cluster and vice versa.
 {
   preset: {
     order: 30,
@@ -48,7 +46,7 @@
           nodes: [
             {
               count: 3,
-              version: '{{environments.defaults.enterpriseAnalyticsVersion}}',
+              version: '{{environments.defaults.operationalInsightsVersion}}',
             },
           ],
           docker: {

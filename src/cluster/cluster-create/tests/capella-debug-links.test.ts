@@ -11,6 +11,7 @@ const environments: EnvironmentsFile = {
     cngClusterVersion: "8.5.0-1060",
     cngPreviousClusterVersion: "8.0.2-5503",
     enterpriseAnalyticsVersion: "2.2.0-1166",
+    operationalInsightsVersion: "3.0.0-1084",
     caoOperatorVersion: "2.9.2",
     cngVersion: "1.2.1-123",
     capellaClusterVersion: "8.0",

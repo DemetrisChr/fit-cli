@@ -104,7 +104,8 @@ preset options:
                                   preset in a group, and is baked into the generated definition.
                                   e.g. --env-override defaults.clusterVersion=7.6-stable
                                   Common paths: defaults.clusterVersion, defaults.capellaClusterVersion,
-                                  defaults.cngClusterVersion, defaults.enterpriseAnalyticsVersion
+                                  defaults.cngClusterVersion, defaults.enterpriseAnalyticsVersion,
+                                  defaults.operationalInsightsVersion
 
 definition options:
   --override <dotpath>=<value>    Override a field in the definition before running (repeatable).

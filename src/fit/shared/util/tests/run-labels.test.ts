@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { clusterLabel, formatRunLabel, instanceLabel, performerLabel, runLabel } from "../run-labels.js";
+import {
+  clusterLabel,
+  formatRunLabel,
+  instanceLabel,
+  isOperationalInsightsVersion,
+  performerLabel,
+  runLabel,
+} from "../run-labels.js";
 
 const path = { instanceIndex: 0, clusterIndex: 0, sessionIndex: 0, runIndex: 0 };
 
@@ -36,6 +43,19 @@ test("clusterLabel names a clusterless session's cluster by version alone", () =
 test("clusterLabel prefixes EA: for a self-managed Enterprise Analytics cluster", () => {
   assert.equal(clusterLabel(path, "cbdinocluster", "2.2.0-1166", true), "EA:2.2.0-1166");
   assert.equal(clusterLabel(path, "cbdinocluster", undefined, true), "EA:cbdino1");
+});
+
+test("clusterLabel prefixes OI: for a 3.x+ Operational Insights build", () => {
+  assert.equal(clusterLabel(path, "cbdinocluster", "3.0.0-1084", true), "OI:3.0.0-1084");
+  assert.equal(clusterLabel(path, "cbdinocluster", "10.1.0", true), "OI:10.1.0");
+});
+
+test("isOperationalInsightsVersion is true only for a known 3.x+ version", () => {
+  assert.equal(isOperationalInsightsVersion("3.0.0-1084"), true);
+  assert.equal(isOperationalInsightsVersion("2.2.0-1166"), false);
+  assert.equal(isOperationalInsightsVersion("1.1.2"), false);
+  assert.equal(isOperationalInsightsVersion(undefined), false);
+  assert.equal(isOperationalInsightsVersion("stable"), false);
 });
 
 test("performerLabel names the session by performer, falling back to sN", () => {
