@@ -70,6 +70,8 @@ When submitting a PR:
   * Usually no need to describe how you've implemented it or go file-by-file - that's what the code is for.
   * The longer the description, the less likely it is someone will actually read it.  Write it for humans.
 * Don't use excessive markup.  Marking up everything that possibly could be just makes it unreadable.
+* Don't do force push, as it means reviewers need to re-review.  Just use squash & merge at the end.
+* Don't do AI code reviews after the push.  We don't want other reviewers to have to wade through those.  Instead do AI reviews _pre_ push.
 
 ## Running on a cloud instance (AWS EC2)
 
