@@ -92,7 +92,7 @@ export async function chooseWorkflow(
         { name: "Build a FIT definition file", value: "create-definition" },
         { name: "Run or share a recently generated definition file", value: "recent-definitions" },
         { name: "Run a FIT definition file", value: "run-definition" },
-        { name: "Configure fit-cli (recommended)", value: "configure" },
+        { name: "Configure fit-cli (not needed for simple workflows)", value: "configure" },
       ] as const)
     : WORKFLOW_CHOICES;
 
