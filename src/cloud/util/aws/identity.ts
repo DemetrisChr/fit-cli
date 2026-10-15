@@ -169,7 +169,8 @@ function printAwsFailureGuidance(profiles: AwsProfilesInfo, _environments: Envir
   console.log(`  2. Login on AWS console (https://us-east-1.console.aws.amazon.com)`);
   console.log(`  3. Create a long-lived access key on https://us-east-1.console.aws.amazon.com/iam/home?region=us-west-2#/security_credentials?section=IAM_credentials`);
   console.log("  4. Run `aws configure --profile cb-sdk` and provide your new access key");
-  console.log('  5. Run fit-cli using that profile: `AWS_PROFILE="cb-sdk" fit ...`');
+  console.log("  5. Sanity check: Run `AWS_PROFILE=cb-sdk aws ec2 describe-instances` - if that fails, you have an AWS issue to fix");
+  console.log('  6. Run fit-cli using that profile: `AWS_PROFILE="cb-sdk" fit ...`');
 }
 
 /** Raw credential values for `env`: explicit env vars first, then the SDK provider chain. */
